@@ -2,10 +2,12 @@ package handler
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"net/url"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"nimbus/service"
 )
 
@@ -21,6 +23,7 @@ type ShortenResponse struct {
 
 type Handler struct {
 	DB *sql.DB
+	RDB *redis.Client
 }
 
 func (h *Handler) Shorten (c *gin.Context) {
@@ -81,6 +84,20 @@ func (h *Handler) Shorten (c *gin.Context) {
 			"error": "failed to create short URL",
 		})
 		return
+	}
+
+	// Write-through to Redis
+	err = h.RDB.Set(
+		c.Request.Context(),
+		code,
+		req.URL,
+		0,
+	).Err()
+
+	if err != nil {
+		// Database insert succeeded, so don't fail the request
+		// just because Redis is unavailable.
+		log.Printf("redis cache set failed: %v", err)
 	}
 
 	c.JSON(http.StatusCreated, ShortenResponse{
