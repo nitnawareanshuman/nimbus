@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -14,10 +15,10 @@ import (
 
 func main() {
 	// PostgreSQL
-	db, err := sql.Open(
-		"postgres",
-		"postgres://nimbus:nimbuspass@localhost:5432/nimbus?sslmode=disable",
-	)
+	dbURL := os.Getenv("DB_URL")
+
+	db, err := sql.Open("postgres", dbURL)
+
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -27,9 +28,14 @@ func main() {
 	}
 
 	// Redis
-	rdb := redis.NewClient(&redis.Options{
-		Addr: "localhost:6379",
-	})
+	redisURL := os.Getenv("REDIS_URL")
+
+	opt, err := redis.ParseURL(redisURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	rdb := redis.NewClient(opt)
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		log.Fatal("redis connection failed:", err)
