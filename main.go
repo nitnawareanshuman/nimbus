@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"net/url"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -14,21 +15,40 @@ import (
 )
 
 func main() {
-	// PostgreSQL
-	dbURL := os.Getenv("DB_URL")
+	// PostgreSQL configuration
+	dbURI := os.Getenv("DB_URI")
+	dbPassword := os.Getenv("DB_PASSWORD")
 
-	db, err := sql.Open("postgres", dbURL)
+	if dbURI == "" {
+		log.Fatal("DB_URI is not set")
+	}
 
+	// Add the password from the Kubernetes Secret to the DB URI.
+	dbURL, err := url.Parse(dbURI)
+	if err != nil {
+		log.Fatal("invalid DB_URI:", err)
+	}
+
+	username := dbURL.User.Username()
+	dbURL.User = url.UserPassword(username, dbPassword)
+
+	db, err := sql.Open("postgres", dbURL.String())
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	if err := db.Ping(); err != nil {
-		log.Fatal(err)
+		log.Fatal("database connection failed:", err)
 	}
 
 	// Redis
-	redisURL := os.Getenv("REDIS_URL")
+	redisHost := os.Getenv("REDIS_HOST")
+
+	if redisHost == "" {
+		log.Fatal("REDIS_HOST is not set")
+	}
+
+	redisURL := "redis://" + redisHost
 
 	opt, err := redis.ParseURL(redisURL)
 	if err != nil {

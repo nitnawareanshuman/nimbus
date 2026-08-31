@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nimbus-config
+data:
+  DB_URI: "postgres://nimbus@postgres:5432/nimbus?sslmode=disable"
+  REDIS_HOST: "redis:6379"
