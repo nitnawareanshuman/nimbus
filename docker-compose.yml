@@ -22,6 +22,10 @@ services:
     environment:
       DB_URL: ${DB_URL}
       REDIS_URL: ${REDIS_URL}
+      BASE_URL: ${BASE_URL}
+      EXTENSION_ORIGIN: ${EXTENSION_ORIGIN}
+      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-10}
+      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -1,1 +1,25 @@
+# Environment files
 .env
+.env.*
+!.env.example
+
+# Go
+bin/
+*.test
+*.out
+coverage.out
+
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
