@@ -17,6 +17,8 @@ const codeLength = 6
 
 var ErrCodeNotFound = errors.New("short code not found")
 
+// GenerateCode generates a cryptographically secure random
+// 6-character short code.
 func GenerateCode() string {
 	result := make([]byte, codeLength)
 
@@ -36,6 +38,11 @@ func GenerateCode() string {
 	return string(result)
 }
 
+// CreateCode creates a unique short code and stores the
+// original URL in PostgreSQL.
+//
+// PostgreSQL is the source of truth.
+// Redis is used as a cache.
 func CreateCode(
 	ctx context.Context,
 	db *sql.DB,
@@ -49,64 +56,62 @@ func CreateCode(
 		return "", errors.New("target URL cannot be empty")
 	}
 
-	// Try multiple times in the extremely unlikely event of a generated-code collision.
+	// Try multiple times in case of an extremely unlikely
+	// short-code collision.
 	for attempts := 0; attempts < 10; attempts++ {
 		code := GenerateCode()
 
-		_, err := db.ExecContext(
+		var insertedCode string
+
+		err := db.QueryRowContext(
 			ctx,
 			`
-			INSERT INTO urls (code, target_url)
+			INSERT INTO codes (short_code, original_url)
 			VALUES ($1, $2)
-			ON CONFLICT (code) DO NOTHING
+			ON CONFLICT (short_code) DO NOTHING
+			RETURNING short_code
 			`,
 			code,
 			targetURL,
-		)
+		).Scan(&insertedCode)
+
+		if err == sql.ErrNoRows {
+			// Code collision. Generate another code.
+			continue
+		}
 
 		if err != nil {
 			return "", err
 		}
 
-		// Check whether our row was actually inserted.
-		var storedURL string
-
-		err = db.QueryRowContext(
-			ctx,
-			`
-			SELECT target_url
-			FROM urls
-			WHERE code = $1
-			`,
-			code,
-		).Scan(&storedURL)
-
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				continue
-			}
-
-			return "", err
+		// Store the URL in Redis as a cache.
+		//
+		// Redis is not the source of truth, so a Redis
+		// failure should not make URL creation fail.
+		if rdb != nil {
+			_ = rdb.Set(
+				ctx,
+				insertedCode,
+				targetURL,
+				0,
+			).Err()
 		}
 
-		// If the stored URL is ours, the insert succeeded.
-		if storedURL == targetURL {
-			if rdb != nil {
-				_ = rdb.Set(
-					ctx,
-					code,
-					targetURL,
-					0,
-				).Err()
-			}
-
-			return code, nil
-		}
+		return insertedCode, nil
 	}
 
 	return "", errors.New("failed to generate a unique short code")
 }
 
+// GetURL retrieves the original URL for a short code.
+//
+// Lookup order:
+//
+// 1. Redis
+// 2. PostgreSQL
+//
+// If PostgreSQL is used, the result is placed into Redis
+// for subsequent requests.
 func GetURL(
 	ctx context.Context,
 	db *sql.DB,
@@ -120,6 +125,10 @@ func GetURL(
 		return "", ErrCodeNotFound
 	}
 
+	// ---------------------------------------------------------
+	// 1. Try Redis first
+	// ---------------------------------------------------------
+
 	if rdb != nil {
 		targetURL, err := rdb.Get(
 			ctx,
@@ -130,19 +139,22 @@ func GetURL(
 			return targetURL, nil
 		}
 
-		if err != redis.Nil {
-			// Continue to PostgreSQL.
-		}
+		// redis.Nil means the key does not exist.
+		// For all Redis errors, fall back to PostgreSQL.
 	}
+
+	// ---------------------------------------------------------
+	// 2. Fall back to PostgreSQL
+	// ---------------------------------------------------------
 
 	var targetURL string
 
 	err := db.QueryRowContext(
 		ctx,
 		`
-		SELECT target_url
-		FROM urls
-		WHERE code = $1
+		SELECT original_url
+		FROM codes
+		WHERE short_code = $1
 		`,
 		code,
 	).Scan(&targetURL)
@@ -154,6 +166,10 @@ func GetURL(
 
 		return "", err
 	}
+
+	// ---------------------------------------------------------
+	// 3. Cache the result in Redis
+	// ---------------------------------------------------------
 
 	if rdb != nil {
 		_ = rdb.Set(
