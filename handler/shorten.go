@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -79,6 +80,8 @@ func (h *Handler) Shorten(c *gin.Context) {
 	)
 
 	if err != nil {
+		log.Printf("CreateCode failed: %v", err)
+
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "failed to create short URL",
 		})
