@@ -1,5 +1,4 @@
 services:
-
   migrate:
     image: migrate/migrate:v4.17.1
     volumes:
@@ -16,53 +15,72 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+
     container_name: nimbus-api
+
     ports:
-      - "${API_PORT}:8080"
+      - "${API_PORT:-8080}:8080"
+
     environment:
       DB_URL: ${DB_URL}
       REDIS_URL: ${REDIS_URL}
-      BASE_URL: ${BASE_URL}
-      EXTENSION_ORIGIN: ${EXTENSION_ORIGIN}
-      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS:-10}
-      RATE_LIMIT_WINDOW_SECONDS: ${RATE_LIMIT_WINDOW_SECONDS:-60}
+      BASE_URL: ${BASE_URL:-http://localhost:8080}
+      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-*}
+
     depends_on:
       migrate:
         condition: service_completed_successfully
+
       redis:
         condition: service_healthy
+
     restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
+
     container_name: nimbus-postgres
+
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-nimbus}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nimbuspass}
+      POSTGRES_DB: ${POSTGRES_DB:-nimbus}
+
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
+
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-nimbus} -d ${POSTGRES_DB:-nimbus}"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
+
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
+
     container_name: nimbus-redis
+
     ports:
-      - "${REDIS_PORT}:6379"
+      - "${REDIS_PORT:-6379}:6379"
+
     volumes:
       - redis_data:/data
+
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
+
     restart: unless-stopped
 
 volumes:

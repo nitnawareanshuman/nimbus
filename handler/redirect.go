@@ -1,104 +1,40 @@
 package handler
 
 import (
-	"database/sql"
-	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
+
+	"nimbus/service"
 )
 
 func (h *Handler) Redirect(c *gin.Context) {
-	code := c.Param("code")
-	ctx := c.Request.Context()
+	code := strings.TrimSpace(c.Param("code"))
 
-	var (
-		codeID     int
-		originalURL string
-	)
-
-	// 1. Check Redis first
-	originalURL, err := h.RDB.Get(ctx, code).Result()
-
-	if err == nil {
-		// Redis HIT
-		log.Println("Redis HIT:", code)
-
-		// We still need codeID to record the click.
-		err = h.DB.QueryRow(
-			`SELECT id FROM codes WHERE short_code = $1`,
-			code,
-		).Scan(&codeID)
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "database error",
-			})
-			return
-		}
-
-	} else if err == redis.Nil {
-		// Redis MISS
-		log.Println("Redis MISS:", code)
-
-		// 2. Fall back to PostgreSQL
-		err = h.DB.QueryRow(
-			`SELECT id, original_url
-			FROM codes
-			WHERE short_code = $1`,
-			code,
-		).Scan(&codeID, &originalURL)
-
-		if err == sql.ErrNoRows {
-			c.JSON(http.StatusNotFound, gin.H{
-				"error": "short code not found",
-			})
-			return
-		}
-
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "database error",
-			})
-			return
-		}
-
-		// 3. Repopulate Redis
-		err = h.RDB.Set(
-			ctx,
-			code,
-			originalURL,
-			0,
-		).Err()
-
-		if err != nil {
-			log.Printf("redis cache set failed: %v", err)
-		}
-
-	} else {
-		// Actual Redis error
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "redis error",
+	if code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "code is required",
 		})
 		return
 	}
 
-	// 4. Record the click
-	_, err = h.DB.Exec(
-		`INSERT INTO clicks (code_id, clicked_at, reference)
-		VALUES ($1, NOW(), $2)`,
-		codeID,
-		c.GetHeader("Referer"),
+	targetURL, err := service.GetURL(
+		c.Request.Context(),
+		h.DB,
+		h.RDB,
+		code,
 	)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "failed to record click",
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "short URL not found",
 		})
 		return
 	}
 
-	// 5. Redirect
-	c.Redirect(http.StatusFound, originalURL)
+	c.Redirect(
+		http.StatusFound,
+		targetURL,
+	)
 }

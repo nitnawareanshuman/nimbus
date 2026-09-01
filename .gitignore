@@ -3,23 +3,23 @@
 .env.*
 !.env.example
 
-# Go
-bin/
-*.test
-*.out
-coverage.out
-
 # macOS
 .DS_Store
 
-# IDEs
+# IDE
 .idea/
 .vscode/
+
+# Go
+*.test
+coverage.out
+
+# Build
+/bin/
+/dist/
 
 # Logs
 *.log
 
 # Temporary files
-*.tmp
-*.swp
-*.swo
+tmp/

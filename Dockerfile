@@ -1,31 +1,29 @@
-# ---------- Build stage ----------
-FROM golang:alpine AS builder
+# ---------- Build ----------
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
-# Install certificates and git for dependencies
-RUN apk add --no-cache ca-certificates git
+RUN apk add --no-cache git ca-certificates
 
-# Copy dependency files first for better Docker layer caching
 COPY go.mod go.sum ./
+
 RUN go mod download
 
-# Copy source code
 COPY . .
 
-# Build a static Linux binary
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -ldflags="-s -w" -o /app/server .
+    go build -ldflags="-s -w" \
+    -o nimbus .
 
-# ---------- Final stage ----------
-FROM scratch
+# ---------- Runtime ----------
+FROM alpine:3.22
 
-# Copy CA certificates in case your API makes HTTPS requests
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+WORKDIR /app
 
-# Copy only the compiled binary
-COPY --from=builder /app/server /server
+RUN apk add --no-cache ca-certificates
+
+COPY --from=builder /app/nimbus /app/nimbus
 
 EXPOSE 8080
 
-ENTRYPOINT ["/server"]
+CMD ["/app/nimbus"]

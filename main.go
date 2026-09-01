@@ -4,22 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"log"
-	"net/url"
 	"os"
-	"strconv"
-	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/lib/pq"
 	"github.com/redis/go-redis/v9"
 
+	_ "github.com/lib/pq"
+
 	"nimbus/handler"
-	nimbusMiddleware "nimbus/middleware"
 )
 
 func getEnv(key, fallback string) string {
-	value := os.Getenv(key)
-
+	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
 		return fallback
 	}
@@ -27,77 +24,32 @@ func getEnv(key, fallback string) string {
 	return value
 }
 
-func getEnvInt(key string, fallback int) int {
-	value := os.Getenv(key)
+func requiredEnv(key string) string {
+	value := strings.TrimSpace(os.Getenv(key))
 
 	if value == "" {
-		return fallback
+		log.Fatalf("%s is not set", key)
 	}
 
-	parsed, err := strconv.Atoi(value)
-	if err != nil {
-		log.Printf("invalid %s value %q, using default %d", key, value, fallback)
-		return fallback
-	}
-
-	return parsed
+	return value
 }
 
 func main() {
-	// --------------------------------------------------
-	// Configuration
-	// --------------------------------------------------
-
-	dbURL := os.Getenv("DB_URL")
-	if dbURL == "" {
-		log.Fatal("DB_URL is not set")
-	}
-
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		log.Fatal("REDIS_URL is not set")
-	}
-
-	baseURL := getEnv("BASE_URL", "http://localhost:8080")
-	extensionOrigin := os.Getenv("EXTENSION_ORIGIN")
-
-	if extensionOrigin == "" {
-		log.Fatal("EXTENSION_ORIGIN is not set")
-	}
-
-	rateLimitRequests := getEnvInt("RATE_LIMIT_REQUESTS", 10)
-	rateLimitWindowSeconds := getEnvInt("RATE_LIMIT_WINDOW_SECONDS", 60)
-
-	if rateLimitRequests <= 0 {
-		log.Fatal("RATE_LIMIT_REQUESTS must be greater than 0")
-	}
-
-	if rateLimitWindowSeconds <= 0 {
-		log.Fatal("RATE_LIMIT_WINDOW_SECONDS must be greater than 0")
-	}
-
-	// Validate BASE_URL during startup.
-	parsedBaseURL, err := url.Parse(baseURL)
-	if err != nil || parsedBaseURL.Scheme == "" || parsedBaseURL.Host == "" {
-		log.Fatal("invalid BASE_URL")
-	}
-
-	// --------------------------------------------------
 	// PostgreSQL
-	// --------------------------------------------------
+	dbURL := requiredEnv("DB_URL")
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("failed to open database:", err)
 	}
+	defer db.Close()
 
 	if err := db.Ping(); err != nil {
 		log.Fatal("database connection failed:", err)
 	}
 
-	// --------------------------------------------------
-	// Redis
-	// --------------------------------------------------
+	// Redis / Valkey
+	redisURL := requiredEnv("REDIS_URL")
 
 	redisOptions, err := redis.ParseURL(redisURL)
 	if err != nil {
@@ -105,43 +57,82 @@ func main() {
 	}
 
 	rdb := redis.NewClient(redisOptions)
+	defer rdb.Close()
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
 		log.Fatal("redis connection failed:", err)
 	}
 
-	defer db.Close()
-	defer rdb.Close()
+	// Application configuration
+	baseURL := strings.TrimRight(
+		getEnv("BASE_URL", "http://localhost:8080"),
+		"/",
+	)
 
-	// --------------------------------------------------
+	allowedOrigin := getEnv(
+		"ALLOWED_ORIGIN",
+		"*",
+	)
+
 	// Handler
-	// --------------------------------------------------
-
 	h := &handler.Handler{
-		DB:                db,
-		RDB:               rdb,
-		BaseURL:           baseURL,
-		RateLimitRequests: int64(rateLimitRequests),
-		RateLimitWindow:   time.Duration(rateLimitWindowSeconds) * time.Second,
+		DB:            db,
+		RDB:           rdb,
+		BaseURL:       baseURL,
+		AllowedOrigin: allowedOrigin,
 	}
 
-	// --------------------------------------------------
 	// Router
-	// --------------------------------------------------
-
 	r := gin.Default()
 
-	// CORS is scoped to the configured Chrome extension.
-	r.Use(nimbusMiddleware.CORS(extensionOrigin))
+	// CORS
+	r.Use(func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
 
+		if allowedOrigin == "*" {
+			c.Header("Access-Control-Allow-Origin", "*")
+		} else if origin == allowedOrigin {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Vary", "Origin")
+		}
+
+		c.Header(
+			"Access-Control-Allow-Methods",
+			"GET, POST, OPTIONS",
+		)
+
+		c.Header(
+			"Access-Control-Allow-Headers",
+			"Content-Type",
+		)
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(204)
+			return
+		}
+
+		c.Next()
+	})
+
+	// Health check
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{
+			"status": "ok",
+		})
+	})
+
+	// API
 	r.POST("/shorten", h.Shorten)
+
+	// Short URL redirect
 	r.GET("/:code", h.Redirect)
 
-	log.Println("Server running on: 8080")
-	log.Println("Base URL:", baseURL)
-	log.Println("Extension origin:", extensionOrigin)
+	port := getEnv("PORT", "8080")
 
-	if err := r.Run(":8080"); err != nil {
+	log.Printf("Nimbus server running on port %s", port)
+	log.Printf("Base URL: %s", baseURL)
+
+	if err := r.Run("0.0.0.0:" + port); err != nil {
 		log.Fatal(err)
 	}
 }
