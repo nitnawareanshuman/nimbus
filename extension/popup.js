@@ -1,4 +1,4 @@
-const DEFAULT_API_BASE_URL = "https://nimbus-api.onrender.com";
+const DEFAULT_API_BASE_URL = "https://nimbus-api-vqsz.onrender.com";
 const STORAGE_KEYS = {
     API_BASE_URL: "apiBaseUrl",
     HISTORY: "shortenedUrls"
