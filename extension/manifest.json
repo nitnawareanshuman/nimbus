@@ -5,9 +5,15 @@
   "version": "1.1.0",
   "permissions": ["activeTab", "storage", "contextMenus"],
   "host_permissions": ["https://*.onrender.com/*"],
+  "icons": {
+    "128": "icons/nimbus.png"
+  },
   "action": {
     "default_title": "Shorten with Nimbus",
-    "default_popup": "popup.html"
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "icons/nimbus.png"
+    }
   },
   "options_page": "options.html",
   "background": {
