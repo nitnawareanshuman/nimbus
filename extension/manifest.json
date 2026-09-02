@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "Nimbus URL Shortener",
+    "description": "Shorten URLs instantly with Nimbus.",
+    "version": "1.0.0",
+    "permissions": [
+        "activeTab",
+        "storage",
+        "contextMenus"
+    ],
+    "host_permissions": [
+        "https://nimbus-api-vqsz.onrender.com/*"
+    ],
+    "action": {
+        "default_title": "Shorten with Nimbus",
+        "default_popup": "popup.html"
+    },
+    "background": {
+        "service_worker": "background.js"
+    }
+}

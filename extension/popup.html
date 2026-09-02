@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nimbus</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="logo">☁</div>
+        <div>
+          <h1>Nimbus</h1>
+          <p>URL Shortener</p>
+        </div>
+      </header>
+
+      <label for="urlInput">URL</label>
+
+      <textarea
+        id="urlInput"
+        placeholder="Paste a URL or use the current tab..."
+        rows="4"
+      ></textarea>
+
+      <button id="shortenBtn" type="button">Shorten URL</button>
+
+      <div id="status" class="status" role="status"></div>
+
+      <section id="result" class="result hidden">
+        <label for="shortUrl">Short URL</label>
+
+        <div class="result-row">
+          <input id="shortUrl" type="text" readonly />
+          <button id="copyBtn" type="button">Copy</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
