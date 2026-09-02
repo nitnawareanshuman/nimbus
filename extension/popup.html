@@ -11,6 +11,7 @@
     <main class="container">
       <header class="header">
         <div class="logo">☁</div>
+
         <div>
           <h1>Nimbus</h1>
           <p>URL Shortener</p>
@@ -27,15 +28,28 @@
 
       <button id="shortenBtn" type="button">Shorten URL</button>
 
-      <div id="status" class="status" role="status"></div>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
 
       <section id="result" class="result hidden">
         <label for="shortUrl">Short URL</label>
 
         <div class="result-row">
           <input id="shortUrl" type="text" readonly />
+
           <button id="copyBtn" type="button">Copy</button>
         </div>
+      </section>
+
+      <section id="history" class="history hidden">
+        <div class="history-header">
+          <h2>Recent links</h2>
+
+          <button id="clearHistoryBtn" class="clear-history-btn" type="button">
+            Clear
+          </button>
+        </div>
+
+        <div id="historyList"></div>
       </section>
     </main>
 

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Nimbus Settings</title>
+
+    <link rel="stylesheet" href="options.css" />
+  </head>
+
+  <body>
+    <main class="container">
+      <header class="header">
+        <div class="logo">☁</div>
+
+        <div>
+          <h1>Nimbus</h1>
+          <p>Extension Settings</p>
+        </div>
+      </header>
+
+      <section class="card">
+        <h2>API configuration</h2>
+
+        <p class="description">
+          Enter the base URL of your Nimbus API deployment. Do not include
+          <code>/shorten</code>.
+        </p>
+
+        <label for="apiBaseUrl"> Nimbus API Base URL </label>
+
+        <input
+          id="apiBaseUrl"
+          type="url"
+          placeholder="https://nimbus-api.onrender.com"
+          autocomplete="off"
+        />
+
+        <button id="saveBtn" type="button">Save settings</button>
+
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card">
+        <h2>Current configuration</h2>
+
+        <p class="description">
+          The extension uses this address for shortening requests.
+        </p>
+
+        <div class="current-url">
+          <code id="currentApiUrl"></code>
+        </div>
+      </section>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>
