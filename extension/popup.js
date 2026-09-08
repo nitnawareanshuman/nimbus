@@ -1,4 +1,6 @@
-const DEFAULT_API_BASE_URL = "https://nimbus-api-vqsz.onrender.com";
+const DEFAULT_API_BASE_URL =
+    "https://nimbus-api-vqsz.onrender.com";
+
 const STORAGE_KEYS = {
     API_BASE_URL: "apiBaseUrl",
     HISTORY: "shortenedUrls"
@@ -9,12 +11,15 @@ const MAX_HISTORY_ITEMS = 20;
 const urlInput = document.getElementById("urlInput");
 const shortenBtn = document.getElementById("shortenBtn");
 const status = document.getElementById("status");
+
 const result = document.getElementById("result");
 const shortUrl = document.getElementById("shortUrl");
 const copyBtn = document.getElementById("copyBtn");
+
 const historySection = document.getElementById("history");
 const historyList = document.getElementById("historyList");
-const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+const clearHistoryBtn =
+    document.getElementById("clearHistoryBtn");
 
 document.addEventListener("DOMContentLoaded", async () => {
     await loadCurrentTabUrl();
@@ -38,16 +43,17 @@ async function loadCurrentTabUrl() {
             return;
         }
 
-        const url = currentTab.url;
-
-        if (isUnsupportedUrl(url)) {
+        if (isUnsupportedUrl(currentTab.url)) {
             urlInput.value = "";
             return;
         }
 
-        urlInput.value = url;
+        urlInput.value = currentTab.url;
     } catch (error) {
-        console.error("Failed to get current tab URL:", error);
+        console.error(
+            "Failed to get current tab URL:",
+            error
+        );
     }
 }
 
@@ -61,12 +67,13 @@ function isUnsupportedUrl(url) {
 }
 
 async function getApiBaseUrl() {
-    const result = await chrome.storage.local.get(
+    const stored = await chrome.storage.local.get(
         STORAGE_KEYS.API_BASE_URL
     );
 
     return normalizeBaseUrl(
-        result[STORAGE_KEYS.API_BASE_URL] || DEFAULT_API_BASE_URL
+        stored[STORAGE_KEYS.API_BASE_URL] ||
+        DEFAULT_API_BASE_URL
     );
 }
 
@@ -76,6 +83,24 @@ function normalizeBaseUrl(value) {
         .replace(/\/+$/, "");
 }
 
+function validateUrl(value) {
+    try {
+        const parsed = new URL(value);
+
+        if (
+            !["http:", "https:"].includes(
+                parsed.protocol
+            )
+        ) {
+            return false;
+        }
+
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 async function shortenUrl() {
     const url = urlInput.value.trim();
 
@@ -83,7 +108,10 @@ async function shortenUrl() {
     result.classList.add("hidden");
 
     if (!url) {
-        showStatus("Please enter a URL.", "error");
+        showStatus(
+            "Please enter a URL.",
+            "error"
+        );
         return;
     }
 
@@ -95,15 +123,7 @@ async function shortenUrl() {
         return;
     }
 
-    try {
-        const parsed = new URL(url);
-
-        if (!["http:", "https:"].includes(parsed.protocol)) {
-            throw new Error(
-                "Only HTTP and HTTPS URLs are supported."
-            );
-        }
-    } catch {
+    if (!validateUrl(url)) {
         showStatus(
             "Please enter a valid HTTP or HTTPS URL.",
             "error"
@@ -114,17 +134,19 @@ async function shortenUrl() {
     setLoading(true);
 
     try {
-        const apiBaseUrl = await getApiBaseUrl();
+        const apiBaseUrl =
+            await getApiBaseUrl();
 
         const response = await fetch(
             `${apiBaseUrl}/shorten`,
             {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type":
+                        "application/json"
                 },
                 body: JSON.stringify({
-                    url: url
+                    url
                 })
             }
         );
@@ -157,7 +179,8 @@ async function shortenUrl() {
 
         await saveToHistory({
             shortUrl: data.short_url,
-            targetUrl: data.target_url || url,
+            targetUrl:
+                data.target_url || url,
             code: data.code || "",
             createdAt: Date.now()
         });
@@ -169,20 +192,14 @@ async function shortenUrl() {
 
         await loadHistory();
     } catch (error) {
-        console.error("Shorten request failed:", error);
-
-        let message = error.message;
-
-        if (
-            error instanceof TypeError &&
-            error.message.includes("fetch")
-        ) {
-            message =
-                "Unable to connect to Nimbus. Check your API URL or internet connection.";
-        }
+        console.error(
+            "Shorten request failed:",
+            error
+        );
 
         showStatus(
-            message || "Unable to connect to Nimbus.",
+            error.message ||
+            "Unable to connect to Nimbus.",
             "error"
         );
     } finally {
@@ -194,10 +211,15 @@ function setLoading(isLoading) {
     shortenBtn.disabled = isLoading;
 
     if (isLoading) {
-        shortenBtn.textContent = "Shortening...";
-        showStatus("Contacting Nimbus...", "loading");
+        shortenBtn.textContent =
+            "Shortening...";
+        showStatus(
+            "Contacting Nimbus...",
+            "loading"
+        );
     } else {
-        shortenBtn.textContent = "Shorten URL";
+        shortenBtn.textContent =
+            "Shorten URL";
     }
 }
 
@@ -212,7 +234,10 @@ async function copyShortUrl() {
         await copyText(value);
         showCopyFeedback();
     } catch (error) {
-        console.error("Copy failed:", error);
+        console.error(
+            "Copy failed:",
+            error
+        );
 
         showStatus(
             "Unable to copy the URL.",
@@ -221,21 +246,29 @@ async function copyShortUrl() {
     }
 }
 
-async function copyHistoryUrl(url, button) {
+async function copyHistoryUrl(
+    url,
+    button
+) {
     try {
         await copyText(url);
 
-        const originalText = button.textContent;
+        const originalText =
+            button.textContent;
 
         button.textContent = "Copied!";
         button.disabled = true;
 
         setTimeout(() => {
-            button.textContent = originalText;
+            button.textContent =
+                originalText;
             button.disabled = false;
         }, 1200);
     } catch (error) {
-        console.error("History copy failed:", error);
+        console.error(
+            "History copy failed:",
+            error
+        );
 
         showStatus(
             "Unable to copy the URL.",
@@ -246,68 +279,81 @@ async function copyHistoryUrl(url, button) {
 
 async function copyText(value) {
     if (navigator.clipboard) {
-        await navigator.clipboard.writeText(value);
+        await navigator.clipboard.writeText(
+            value
+        );
         return;
     }
 
     shortUrl.select();
 
-    const successful = document.execCommand("copy");
+    const successful =
+        document.execCommand("copy");
 
     if (!successful) {
-        throw new Error("Copy command failed.");
+        throw new Error(
+            "Copy command failed."
+        );
     }
 }
 
 function showCopyFeedback() {
-    const originalText = copyBtn.textContent;
+    const originalText =
+        copyBtn.textContent;
 
     copyBtn.textContent = "Copied!";
     copyBtn.disabled = true;
 
     setTimeout(() => {
-        copyBtn.textContent = originalText;
+        copyBtn.textContent =
+            originalText;
         copyBtn.disabled = false;
     }, 1500);
 }
 
 async function saveToHistory(item) {
-    const stored = await chrome.storage.local.get(
-        STORAGE_KEYS.HISTORY
-    );
+    const stored =
+        await chrome.storage.local.get(
+            STORAGE_KEYS.HISTORY
+        );
 
-    const history = Array.isArray(
-        stored[STORAGE_KEYS.HISTORY]
-    )
-        ? stored[STORAGE_KEYS.HISTORY]
-        : [];
+    const history =
+        Array.isArray(
+            stored[STORAGE_KEYS.HISTORY]
+        )
+            ? stored[STORAGE_KEYS.HISTORY]
+            : [];
 
-    const filteredHistory = history.filter(
-        entry => entry.shortUrl !== item.shortUrl
-    );
+    const filteredHistory =
+        history.filter(
+            entry =>
+                entry.shortUrl !==
+                item.shortUrl
+        );
 
     filteredHistory.unshift(item);
 
-    const trimmedHistory = filteredHistory.slice(
-        0,
-        MAX_HISTORY_ITEMS
-    );
-
     await chrome.storage.local.set({
-        [STORAGE_KEYS.HISTORY]: trimmedHistory
+        [STORAGE_KEYS.HISTORY]:
+            filteredHistory.slice(
+                0,
+                MAX_HISTORY_ITEMS
+            )
     });
 }
 
 async function loadHistory() {
-    const stored = await chrome.storage.local.get(
-        STORAGE_KEYS.HISTORY
-    );
+    const stored =
+        await chrome.storage.local.get(
+            STORAGE_KEYS.HISTORY
+        );
 
-    const history = Array.isArray(
-        stored[STORAGE_KEYS.HISTORY]
-    )
-        ? stored[STORAGE_KEYS.HISTORY]
-        : [];
+    const history =
+        Array.isArray(
+            stored[STORAGE_KEYS.HISTORY]
+        )
+            ? stored[STORAGE_KEYS.HISTORY]
+            : [];
 
     renderHistory(history);
 }
@@ -316,55 +362,103 @@ function renderHistory(history) {
     historyList.innerHTML = "";
 
     if (history.length === 0) {
-        historySection.classList.add("hidden");
+        historySection.classList.add(
+            "hidden"
+        );
         return;
     }
 
-    historySection.classList.remove("hidden");
+    historySection.classList.remove(
+        "hidden"
+    );
 
     history.forEach(item => {
-        const historyItem = document.createElement("div");
-        historyItem.className = "history-item";
+        const historyItem =
+            document.createElement("div");
 
-        const content = document.createElement("div");
-        content.className = "history-content";
+        historyItem.className =
+            "history-item";
 
-        const shortLink = document.createElement("a");
-        shortLink.className = "history-short-url";
-        shortLink.href = item.shortUrl;
+        const content =
+            document.createElement("div");
+
+        content.className =
+            "history-content";
+
+        const shortLink =
+            document.createElement("a");
+
+        shortLink.className =
+            "history-short-url";
+        shortLink.href =
+            item.shortUrl;
         shortLink.target = "_blank";
-        shortLink.rel = "noopener noreferrer";
-        shortLink.textContent = item.shortUrl;
+        shortLink.rel =
+            "noopener noreferrer";
+        shortLink.textContent =
+            item.shortUrl;
 
-        const targetUrl = document.createElement("div");
-        targetUrl.className = "history-target-url";
-        targetUrl.title = item.targetUrl;
-        targetUrl.textContent = item.targetUrl;
+        const targetUrl =
+            document.createElement("div");
 
-        const date = document.createElement("div");
-        date.className = "history-date";
-        date.textContent = formatDate(item.createdAt);
+        targetUrl.className =
+            "history-target-url";
+        targetUrl.title =
+            item.targetUrl;
+        targetUrl.textContent =
+            item.targetUrl;
 
-        content.appendChild(shortLink);
-        content.appendChild(targetUrl);
-        content.appendChild(date);
+        const date =
+            document.createElement("div");
 
-        const copyHistoryButton = document.createElement("button");
-        copyHistoryButton.className = "history-copy-btn";
-        copyHistoryButton.type = "button";
-        copyHistoryButton.textContent = "Copy";
-
-        copyHistoryButton.addEventListener("click", () => {
-            copyHistoryUrl(
-                item.shortUrl,
-                copyHistoryButton
+        date.className =
+            "history-date";
+        date.textContent =
+            formatDate(
+                item.createdAt
             );
-        });
 
-        historyItem.appendChild(content);
-        historyItem.appendChild(copyHistoryButton);
+        content.appendChild(
+            shortLink
+        );
+        content.appendChild(
+            targetUrl
+        );
+        content.appendChild(
+            date
+        );
 
-        historyList.appendChild(historyItem);
+        const copyHistoryButton =
+            document.createElement(
+                "button"
+            );
+
+        copyHistoryButton.className =
+            "history-copy-btn";
+        copyHistoryButton.type =
+            "button";
+        copyHistoryButton.textContent =
+            "Copy";
+
+        copyHistoryButton.addEventListener(
+            "click",
+            () =>
+                copyHistoryUrl(
+                    item.shortUrl,
+                    copyHistoryButton
+                )
+        );
+
+        historyItem.appendChild(
+            content
+        );
+        historyItem.appendChild(
+            copyHistoryButton
+        );
+
+        historyList.appendChild(
+            historyItem
+        );
     });
 }
 
@@ -394,7 +488,9 @@ function formatDate(timestamp) {
         return "";
     }
 
-    return new Date(timestamp).toLocaleString(
+    return new Date(
+        timestamp
+    ).toLocaleString(
         undefined,
         {
             dateStyle: "short",
@@ -403,9 +499,13 @@ function formatDate(timestamp) {
     );
 }
 
-function showStatus(message, type = "") {
+function showStatus(
+    message,
+    type = ""
+) {
     status.textContent = message;
-    status.className = `status ${type}`;
+    status.className =
+        `status ${type}`;
 }
 
 function clearStatus() {

@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
     <title>Nimbus</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
@@ -10,47 +13,100 @@
   <body>
     <main class="container">
       <header class="header">
-        <img src="icons/nimbus.png" alt="Nimbus" width="64" height="64">
+        <div class="brand-icon">
+          <img
+            src="icons/nimbus-128.png"
+            alt=""
+            width="46"
+            height="46"
+          />
+        </div>
 
-        <div>
+        <div class="brand-copy">
           <h1>Nimbus</h1>
-          <p>URL Shortener</p>
+          <p>Fast, simple URL shortening</p>
         </div>
       </header>
 
-      <label for="urlInput">URL</label>
+      <section class="intro">
+        <h2>Shorten a link</h2>
+        <p>
+          Paste a URL or use the page you are currently viewing.
+        </p>
+      </section>
+
+      <label for="urlInput">Destination URL</label>
 
       <textarea
         id="urlInput"
-        placeholder="Paste a URL or use the current tab..."
+        placeholder="https://example.com/very/long/url..."
         rows="4"
+        spellcheck="false"
       ></textarea>
 
-      <button id="shortenBtn" type="button">Shorten URL</button>
+      <button
+        id="shortenBtn"
+        class="primary-btn"
+        type="button"
+      >
+        Shorten URL
+      </button>
 
-      <div id="status" class="status" role="status" aria-live="polite"></div>
+      <div
+        id="status"
+        class="status"
+        role="status"
+        aria-live="polite"
+      ></div>
 
       <section id="result" class="result hidden">
-        <label for="shortUrl">Short URL</label>
+        <div class="section-heading">
+          <label for="shortUrl">Your short URL</label>
+          <span class="success-badge">Ready</span>
+        </div>
 
         <div class="result-row">
-          <input id="shortUrl" type="text" readonly />
+          <input
+            id="shortUrl"
+            type="text"
+            readonly
+            aria-label="Short URL"
+          />
 
-          <button id="copyBtn" type="button">Copy</button>
+          <button
+            id="copyBtn"
+            class="secondary-btn"
+            type="button"
+          >
+            Copy
+          </button>
         </div>
       </section>
 
       <section id="history" class="history hidden">
         <div class="history-header">
-          <h2>Recent links</h2>
+          <div>
+            <h2>Recent links</h2>
+            <p>Your latest shortened URLs</p>
+          </div>
 
-          <button id="clearHistoryBtn" class="clear-history-btn" type="button">
+          <button
+            id="clearHistoryBtn"
+            class="clear-history-btn"
+            type="button"
+          >
             Clear
           </button>
         </div>
 
         <div id="historyList"></div>
       </section>
+
+      <footer class="footer">
+        <span>Nimbus URL Shortener</span>
+        <span>•</span>
+        <span>Simple. Fast. Useful.</span>
+      </footer>
     </main>
 
     <script src="popup.js"></script>

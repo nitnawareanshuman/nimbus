@@ -1,21 +1,32 @@
 {
   "manifest_version": 3,
   "name": "Nimbus URL Shortener",
-  "description": "Shorten URLs instantly with Nimbus.",
-  "version": "1.1.0",
+  "short_name": "Nimbus",
+  "description": "Shorten long URLs instantly from your Chrome toolbar, current tab, or right-click menu.",
+  "version": "1.2.0",
+
   "permissions": ["activeTab", "storage", "contextMenus"],
-  "host_permissions": ["https://*.onrender.com/*"],
+
+  "host_permissions": ["https://nimbus-api-vqsz.onrender.com/*"],
+
   "icons": {
-    "128": "icons/nimbus.png"
+    "16": "icons/nimbus-16.png",
+    "48": "icons/nimbus-48.png",
+    "128": "icons/nimbus-128.png"
   },
+
   "action": {
     "default_title": "Shorten with Nimbus",
     "default_popup": "popup.html",
     "default_icon": {
-      "128": "icons/nimbus.png"
+      "16": "icons/nimbus-16.png",
+      "48": "icons/nimbus-48.png",
+      "128": "icons/nimbus-128.png"
     }
   },
+
   "options_page": "options.html",
+
   "background": {
     "service_worker": "background.js"
   }
