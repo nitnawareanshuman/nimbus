@@ -2,10 +2,10 @@ package handler
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
-	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -14,9 +14,9 @@ import (
 )
 
 type Handler struct {
-	DB            *sql.DB
-	RDB           *redis.Client
-	BaseURL       string
+	DB      *sql.DB
+	RDB     *redis.Client
+	BaseURL string
 }
 
 type shortenRequest struct {
@@ -56,8 +56,7 @@ func (h *Handler) Shorten(c *gin.Context) {
 		return
 	}
 
-	if parsedURL.Scheme != "http" &&
-		parsedURL.Scheme != "https" {
+	if parsedURL.Scheme != "http" && parsedURL.Scheme != "https" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "URL must use http or https",
 		})
@@ -77,7 +76,6 @@ func (h *Handler) Shorten(c *gin.Context) {
 		h.RDB,
 		req.URL,
 	)
-
 	if err != nil {
 		log.Printf("CreateCode failed: %v", err)
 

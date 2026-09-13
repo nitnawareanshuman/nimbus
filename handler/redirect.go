@@ -33,8 +33,5 @@ func (h *Handler) Redirect(c *gin.Context) {
 		return
 	}
 
-	c.Redirect(
-		http.StatusFound,
-		targetURL,
-	)
+	c.Redirect(http.StatusFound, targetURL)
 }

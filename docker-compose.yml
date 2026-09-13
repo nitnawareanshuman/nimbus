@@ -1,12 +1,15 @@
 services:
   migrate:
     image: migrate/migrate:v4.17.1
+
     volumes:
       - ./migrations:/migrations
+
     command:
       - "-path=/migrations"
-      - "-database=postgres://nimbus:nimbuspass@postgres:5432/nimbus?sslmode=disable"
+      - "-database=${DB_URL:-postgres://nimbus:nimbuspass@postgres:5432/nimbus?sslmode=disable}"
       - "up"
+
     depends_on:
       postgres:
         condition: service_healthy
@@ -22,8 +25,12 @@ services:
       - "${API_PORT:-8080}:8080"
 
     environment:
-      DB_URL: ${DB_URL}
-      REDIS_URL: ${REDIS_URL}
+      PORT: 8080
+
+      DB_URL: ${DB_URL:-postgres://nimbus:nimbuspass@postgres:5432/nimbus?sslmode=disable}
+
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+
       BASE_URL: ${BASE_URL:-http://localhost:8080}
 
     depends_on:

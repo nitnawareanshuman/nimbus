@@ -9,7 +9,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
-
 	_ "github.com/lib/pq"
 
 	"nimbus/handler"
@@ -40,59 +39,58 @@ func main() {
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("failed to open database:", err)
+		log.Fatal("failed to open database: ", err)
 	}
 	defer db.Close()
 
 	if err := db.Ping(); err != nil {
-		log.Fatal("database connection failed:", err)
+		log.Fatal("database connection failed: ", err)
 	}
+
+	log.Println("PostgreSQL connected")
 
 	// Redis
 	redisURL := requiredEnv("REDIS_URL")
 
 	redisOptions, err := redis.ParseURL(redisURL)
 	if err != nil {
-		log.Fatal("invalid REDIS_URL:", err)
+		log.Fatal("invalid REDIS_URL: ", err)
 	}
 
 	rdb := redis.NewClient(redisOptions)
 	defer rdb.Close()
 
 	if err := rdb.Ping(context.Background()).Err(); err != nil {
-		log.Fatal("redis connection failed:", err)
+		log.Fatal("redis connection failed: ", err)
 	}
 
-	// Application configuration
+	log.Println("Redis connected")
+
+	// Public URL used when creating shortened links
 	baseURL := strings.TrimRight(
 		getEnv("BASE_URL", "http://localhost:8080"),
 		"/",
 	)
 
-
-	// Handler
 	h := &handler.Handler{
-		DB:            db,
-		RDB:           rdb,
-		BaseURL:       baseURL,
+		DB:      db,
+		RDB:     rdb,
+		BaseURL: baseURL,
 	}
 
-	// Router
 	r := gin.Default()
 
-	// Health check
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{
 			"status": "ok",
 		})
 	})
 
-	// Shorten API
 	r.POST("/shorten", h.Shorten)
-
-	// Short URL redirect API
 	r.GET("/:code", h.Redirect)
 
+	// Render automatically provides PORT.
+	// Local Docker/default development uses 8080.
 	port := getEnv("PORT", "8080")
 
 	log.Printf("Nimbus server running on port %s", port)
