@@ -13,6 +13,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"nimbus/handler"
+	"nimbus/middleware"
 )
 
 func getEnv(key, fallback string) string {
@@ -48,7 +49,7 @@ func main() {
 		log.Fatal("database connection failed:", err)
 	}
 
-	// Redis / Valkey
+	// Redis
 	redisURL := requiredEnv("REDIS_URL")
 
 	redisOptions, err := redis.ParseURL(redisURL)
@@ -86,33 +87,7 @@ func main() {
 	r := gin.Default()
 
 	// CORS
-	r.Use(func(c *gin.Context) {
-		origin := c.GetHeader("Origin")
-
-		if allowedOrigin == "*" {
-			c.Header("Access-Control-Allow-Origin", "*")
-		} else if origin == allowedOrigin {
-			c.Header("Access-Control-Allow-Origin", origin)
-			c.Header("Vary", "Origin")
-		}
-
-		c.Header(
-			"Access-Control-Allow-Methods",
-			"GET, POST, OPTIONS",
-		)
-
-		c.Header(
-			"Access-Control-Allow-Headers",
-			"Content-Type",
-		)
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(204)
-			return
-		}
-
-		c.Next()
-	})
+	r.Use(middleware.CORS(allowedOrigin))
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
@@ -121,10 +96,10 @@ func main() {
 		})
 	})
 
-	// API
+	// Shorten API
 	r.POST("/shorten", h.Shorten)
 
-	// Short URL redirect
+	// Short URL redirect API
 	r.GET("/:code", h.Redirect)
 
 	port := getEnv("PORT", "8080")
