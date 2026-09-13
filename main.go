@@ -13,7 +13,6 @@ import (
 	_ "github.com/lib/pq"
 
 	"nimbus/handler"
-	"nimbus/middleware"
 )
 
 func getEnv(key, fallback string) string {
@@ -70,24 +69,16 @@ func main() {
 		"/",
 	)
 
-	allowedOrigin := getEnv(
-		"ALLOWED_ORIGIN",
-		"*",
-	)
 
 	// Handler
 	h := &handler.Handler{
 		DB:            db,
 		RDB:           rdb,
 		BaseURL:       baseURL,
-		AllowedOrigin: allowedOrigin,
 	}
 
 	// Router
 	r := gin.Default()
-
-	// CORS
-	r.Use(middleware.CORS(allowedOrigin))
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {

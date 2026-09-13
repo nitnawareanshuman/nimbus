@@ -25,7 +25,6 @@ services:
       DB_URL: ${DB_URL}
       REDIS_URL: ${REDIS_URL}
       BASE_URL: ${BASE_URL:-http://localhost:8080}
-      ALLOWED_ORIGIN: ${ALLOWED_ORIGIN:-*}
 
     depends_on:
       migrate:

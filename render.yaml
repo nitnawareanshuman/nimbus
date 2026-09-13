@@ -24,8 +24,6 @@ services:
       - key: BASE_URL
         sync: false
 
-      - key: ALLOWED_ORIGIN
-        sync: false
 
 databases:
   - name: nimbus-db

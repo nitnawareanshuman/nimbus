@@ -17,7 +17,6 @@ type Handler struct {
 	DB            *sql.DB
 	RDB           *redis.Client
 	BaseURL       string
-	AllowedOrigin string
 }
 
 type shortenRequest struct {
