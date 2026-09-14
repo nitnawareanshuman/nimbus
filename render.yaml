@@ -10,10 +10,10 @@ services:
     healthCheckPath: /health
 
     envVars:
+      # Production PostgreSQL URL.
+      # Set this manually in the Render dashboard.
       - key: DB_URL
-        fromDatabase:
-          name: nimbus-db
-          property: connectionString
+        sync: false
 
       - key: REDIS_URL
         fromService:
@@ -24,15 +24,9 @@ services:
       - key: BASE_URL
         sync: false
 
-
-databases:
-  - name: nimbus-db
+  - type: keyvalue
+    name: nimbus-redis
     plan: free
     region: singapore
-
-    databaseName: nimbus
-    user: nimbus
-
-  - name: nimbus-redis
-    plan: free
-    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru
