@@ -2,113 +2,71 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light" />
     <title>Nimbus</title>
     <link rel="stylesheet" href="popup.css" />
   </head>
-
   <body>
-    <main class="container">
-      <header class="header">
-        <div class="brand-icon">
-          <img
-            src="icons/nimbus-128.png"
-            alt=""
-            width="46"
-            height="46"
-          />
+    <main class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <img class="brand-mark" src="icons/nimbus-48.png" alt="" width="40" height="40" />
+          <div>
+            <h1>Nimbus</h1>
+            <p>URL Shortener</p>
+          </div>
         </div>
-
-        <div class="brand-copy">
-          <h1>Nimbus</h1>
-          <p>Fast, simple URL shortening</p>
-        </div>
+        <span class="privacy-pill" title="Recent history stays in Chrome storage">Local history</span>
       </header>
 
-      <section class="intro">
-        <h2>Shorten a link</h2>
-        <p>
-          Paste a URL or use the page you are currently viewing.
-        </p>
+      <section class="hero" aria-labelledby="heroTitle">
+        <div class="hero-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M10.6 13.4a1 1 0 0 0 1.4 0l3.4-3.4a3 3 0 0 0-4.2-4.2L9.3 7.7a1 1 0 1 0 1.4 1.4l1.9-1.9a1 1 0 0 1 1.4 1.4L10.6 12a1 1 0 0 0 0 1.4Z"/><path d="M13.4 10.6a1 1 0 0 0-1.4 0L8.6 14a3 3 0 0 0 4.2 4.2l1.9-1.9a1 1 0 1 0-1.4-1.4l-1.9 1.9a1 1 0 0 1-1.4-1.4l3.4-3.4a1 1 0 0 0 0-1.4Z"/></svg>
+        </div>
+        <div>
+          <h2 id="heroTitle">Make this link smaller.</h2>
+          <p>Use the current tab or paste any HTTP/HTTPS link.</p>
+        </div>
       </section>
 
-      <label for="urlInput">Destination URL</label>
-
-      <textarea
-        id="urlInput"
-        placeholder="https://example.com/very/long/url..."
-        rows="4"
-        spellcheck="false"
-      ></textarea>
-
-      <button
-        id="shortenBtn"
-        class="primary-btn"
-        type="button"
-      >
-        Shorten URL
-      </button>
-
-      <div
-        id="status"
-        class="status"
-        role="status"
-        aria-live="polite"
-      ></div>
-
-      <section id="result" class="result hidden">
-        <div class="section-heading">
-          <label for="shortUrl">Your short URL</label>
-          <span class="success-badge">Ready</span>
+      <section class="form-card">
+        <div class="field-heading">
+          <label for="urlInput">Destination URL</label>
+          <button id="useCurrentBtn" class="text-btn" type="button">Use current tab</button>
         </div>
+        <textarea id="urlInput" rows="3" placeholder="https://example.com/a/very/long/link" spellcheck="false" autocomplete="off"></textarea>
+        <button id="shortenBtn" class="primary-btn" type="button">
+          <span>Shorten URL</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
 
+      <section id="result" class="result-card hidden" aria-label="Shortened URL">
+        <div class="result-meta">
+          <span class="success-dot"></span>
+          <strong>Short link ready</strong>
+        </div>
         <div class="result-row">
-          <input
-            id="shortUrl"
-            type="text"
-            readonly
-            aria-label="Short URL"
-          />
-
-          <button
-            id="copyBtn"
-            class="secondary-btn"
-            type="button"
-          >
-            Copy
+          <input id="shortUrl" type="text" readonly aria-label="Short URL" />
+          <button id="copyBtn" class="icon-btn copy-btn" type="button" aria-label="Copy short URL" title="Copy short URL">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>
           </button>
         </div>
       </section>
 
-      <section id="history" class="history hidden">
-        <div class="history-header">
+      <section id="history" class="history hidden" aria-labelledby="historyTitle">
+        <div class="history-heading">
           <div>
-            <h2>Recent links</h2>
-            <p>Your latest shortened URLs</p>
+            <h2 id="historyTitle">Recent links</h2>
+            <p>Stored only in this Chrome profile.</p>
           </div>
-
-          <button
-            id="clearHistoryBtn"
-            class="clear-history-btn"
-            type="button"
-          >
-            Clear
-          </button>
+          <button id="clearHistoryBtn" class="text-btn danger" type="button">Clear</button>
         </div>
-
-        <div id="historyList"></div>
+        <div id="historyList" class="history-list"></div>
       </section>
-
-      <footer class="footer">
-        <span>Nimbus URL Shortener</span>
-        <span>•</span>
-        <span>Simple. Fast. Useful.</span>
-      </footer>
     </main>
-
     <script src="popup.js"></script>
   </body>
 </html>

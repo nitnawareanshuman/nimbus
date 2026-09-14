@@ -1,101 +1,52 @@
-const DEFAULT_API_BASE_URL =
-    "https://nimbus-api-vqsz.onrender.com";
-
-const STORAGE_KEYS = {
-    API_BASE_URL: "apiBaseUrl",
-    HISTORY: "shortenedUrls"
-};
-
+const API_BASE_URL = "https://nimbus-api-vqsz.onrender.com";
+const HISTORY_KEY = "shortenedUrls";
 const MAX_HISTORY_ITEMS = 20;
 
 const urlInput = document.getElementById("urlInput");
+const useCurrentBtn = document.getElementById("useCurrentBtn");
 const shortenBtn = document.getElementById("shortenBtn");
 const status = document.getElementById("status");
-
 const result = document.getElementById("result");
 const shortUrl = document.getElementById("shortUrl");
 const copyBtn = document.getElementById("copyBtn");
-
 const historySection = document.getElementById("history");
 const historyList = document.getElementById("historyList");
-const clearHistoryBtn =
-    document.getElementById("clearHistoryBtn");
+const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 
-document.addEventListener("DOMContentLoaded", async () => {
-    await loadCurrentTabUrl();
-    await loadHistory();
+window.addEventListener("DOMContentLoaded", async () => {
+    await Promise.all([loadCurrentTabUrl(), loadHistory()]);
 });
 
+useCurrentBtn.addEventListener("click", loadCurrentTabUrl);
 shortenBtn.addEventListener("click", shortenUrl);
 copyBtn.addEventListener("click", copyShortUrl);
 clearHistoryBtn.addEventListener("click", clearHistory);
+urlInput.addEventListener("keydown", event => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") shortenUrl();
+});
 
 async function loadCurrentTabUrl() {
     try {
-        const tabs = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-
-        const currentTab = tabs[0];
-
-        if (!currentTab || !currentTab.url) {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab?.url || isUnsupportedUrl(tab.url)) {
+            showStatus("This Chrome page cannot be shortened.", "error");
             return;
         }
-
-        if (isUnsupportedUrl(currentTab.url)) {
-            urlInput.value = "";
-            return;
-        }
-
-        urlInput.value = currentTab.url;
+        urlInput.value = tab.url;
+        clearStatus();
     } catch (error) {
-        console.error(
-            "Failed to get current tab URL:",
-            error
-        );
+        console.error("Nimbus could not read the current tab:", error);
+        showStatus("Could not read the current tab.", "error");
     }
 }
 
 function isUnsupportedUrl(url) {
-    return (
-        url.startsWith("chrome://") ||
-        url.startsWith("chrome-extension://") ||
-        url.startsWith("edge://") ||
-        url.startsWith("about:")
-    );
+    return /^(chrome|chrome-extension|edge|about|view-source):/i.test(url);
 }
 
-async function getApiBaseUrl() {
-    const stored = await chrome.storage.local.get(
-        STORAGE_KEYS.API_BASE_URL
-    );
-
-    return normalizeBaseUrl(
-        stored[STORAGE_KEYS.API_BASE_URL] ||
-        DEFAULT_API_BASE_URL
-    );
-}
-
-function normalizeBaseUrl(value) {
-    return String(value || "")
-        .trim()
-        .replace(/\/+$/, "");
-}
-
-function validateUrl(value) {
+function validateHttpUrl(value) {
     try {
-        const parsed = new URL(value);
-
-        if (
-            !["http:", "https:"].includes(
-                parsed.protocol
-            )
-        ) {
-            return false;
-        }
-
-        return true;
+        return ["http:", "https:"].includes(new URL(value).protocol);
     } catch {
         return false;
     }
@@ -103,409 +54,138 @@ function validateUrl(value) {
 
 async function shortenUrl() {
     const url = urlInput.value.trim();
-
-    clearStatus();
     result.classList.add("hidden");
+    clearStatus();
 
-    if (!url) {
-        showStatus(
-            "Please enter a URL.",
-            "error"
-        );
-        return;
-    }
-
-    if (isUnsupportedUrl(url)) {
-        showStatus(
-            "Chrome internal pages cannot be shortened.",
-            "error"
-        );
-        return;
-    }
-
-    if (!validateUrl(url)) {
-        showStatus(
-            "Please enter a valid HTTP or HTTPS URL.",
-            "error"
-        );
+    if (!validateHttpUrl(url) || isUnsupportedUrl(url)) {
+        showStatus("Enter a valid HTTP or HTTPS URL.", "error");
         return;
     }
 
     setLoading(true);
-
     try {
-        const apiBaseUrl =
-            await getApiBaseUrl();
+        const response = await fetch(`${API_BASE_URL}/shorten`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+        });
 
-        const response = await fetch(
-            `${apiBaseUrl}/shorten`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type":
-                        "application/json"
-                },
-                body: JSON.stringify({
-                    url
-                })
-            }
-        );
-
-        let data;
-
-        try {
-            data = await response.json();
-        } catch {
-            throw new Error(
-                "The server returned an invalid response."
-            );
-        }
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                `Request failed with status ${response.status}.`
-            );
-        }
-
-        if (!data.short_url) {
-            throw new Error(
-                "The server did not return a short URL."
-            );
-        }
+        const data = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(data?.error || `Nimbus returned ${response.status}.`);
+        if (!data?.short_url) throw new Error("Nimbus did not return a short URL.");
 
         shortUrl.value = data.short_url;
         result.classList.remove("hidden");
-
         await saveToHistory({
             shortUrl: data.short_url,
-            targetUrl:
-                data.target_url || url,
-            code: data.code || "",
+            targetUrl: data.target_url || url,
             createdAt: Date.now()
         });
-
-        showStatus(
-            "URL shortened successfully.",
-            "success"
-        );
-
         await loadHistory();
+        showStatus("Done — your short link is ready.", "success");
     } catch (error) {
-        console.error(
-            "Shorten request failed:",
-            error
-        );
-
-        showStatus(
-            error.message ||
-            "Unable to connect to Nimbus.",
-            "error"
-        );
+        console.error("Nimbus shorten request failed:", error);
+        showStatus(error?.message || "Unable to connect to Nimbus.", "error");
     } finally {
         setLoading(false);
     }
 }
 
-function setLoading(isLoading) {
-    shortenBtn.disabled = isLoading;
-
-    if (isLoading) {
-        shortenBtn.textContent =
-            "Shortening...";
-        showStatus(
-            "Contacting Nimbus...",
-            "loading"
-        );
-    } else {
-        shortenBtn.textContent =
-            "Shorten URL";
-    }
+function setLoading(loading) {
+    shortenBtn.disabled = loading;
+    shortenBtn.querySelector("span").textContent = loading ? "Shortening…" : "Shorten URL";
+    if (loading) showStatus("Creating your short link…", "loading");
 }
 
 async function copyShortUrl() {
     const value = shortUrl.value.trim();
-
-    if (!value) {
-        return;
-    }
-
+    if (!value) return;
     try {
-        await copyText(value);
-        showCopyFeedback();
-    } catch (error) {
-        console.error(
-            "Copy failed:",
-            error
-        );
-
-        showStatus(
-            "Unable to copy the URL.",
-            "error"
-        );
-    }
-}
-
-async function copyHistoryUrl(
-    url,
-    button
-) {
-    try {
-        await copyText(url);
-
-        const originalText =
-            button.textContent;
-
-        button.textContent = "Copied!";
-        button.disabled = true;
-
+        await navigator.clipboard.writeText(value);
+        copyBtn.disabled = true;
+        copyBtn.setAttribute("aria-label", "Copied");
+        showStatus("Copied to clipboard.", "success");
         setTimeout(() => {
-            button.textContent =
-                originalText;
-            button.disabled = false;
-        }, 1200);
+            copyBtn.disabled = false;
+            copyBtn.setAttribute("aria-label", "Copy short URL");
+        }, 1000);
     } catch (error) {
-        console.error(
-            "History copy failed:",
-            error
-        );
-
-        showStatus(
-            "Unable to copy the URL.",
-            "error"
-        );
+        console.error("Nimbus copy failed:", error);
+        showStatus("Could not copy the short URL.", "error");
     }
-}
-
-async function copyText(value) {
-    if (navigator.clipboard) {
-        await navigator.clipboard.writeText(
-            value
-        );
-        return;
-    }
-
-    shortUrl.select();
-
-    const successful =
-        document.execCommand("copy");
-
-    if (!successful) {
-        throw new Error(
-            "Copy command failed."
-        );
-    }
-}
-
-function showCopyFeedback() {
-    const originalText =
-        copyBtn.textContent;
-
-    copyBtn.textContent = "Copied!";
-    copyBtn.disabled = true;
-
-    setTimeout(() => {
-        copyBtn.textContent =
-            originalText;
-        copyBtn.disabled = false;
-    }, 1500);
 }
 
 async function saveToHistory(item) {
-    const stored =
-        await chrome.storage.local.get(
-            STORAGE_KEYS.HISTORY
-        );
-
-    const history =
-        Array.isArray(
-            stored[STORAGE_KEYS.HISTORY]
-        )
-            ? stored[STORAGE_KEYS.HISTORY]
-            : [];
-
-    const filteredHistory =
-        history.filter(
-            entry =>
-                entry.shortUrl !==
-                item.shortUrl
-        );
-
-    filteredHistory.unshift(item);
-
-    await chrome.storage.local.set({
-        [STORAGE_KEYS.HISTORY]:
-            filteredHistory.slice(
-                0,
-                MAX_HISTORY_ITEMS
-            )
-    });
+    const stored = await chrome.storage.local.get(HISTORY_KEY);
+    const history = Array.isArray(stored[HISTORY_KEY]) ? stored[HISTORY_KEY] : [];
+    const next = history.filter(entry => entry.shortUrl !== item.shortUrl);
+    next.unshift(item);
+    await chrome.storage.local.set({ [HISTORY_KEY]: next.slice(0, MAX_HISTORY_ITEMS) });
 }
 
 async function loadHistory() {
-    const stored =
-        await chrome.storage.local.get(
-            STORAGE_KEYS.HISTORY
-        );
-
-    const history =
-        Array.isArray(
-            stored[STORAGE_KEYS.HISTORY]
-        )
-            ? stored[STORAGE_KEYS.HISTORY]
-            : [];
-
+    const stored = await chrome.storage.local.get(HISTORY_KEY);
+    const history = Array.isArray(stored[HISTORY_KEY]) ? stored[HISTORY_KEY] : [];
     renderHistory(history);
 }
 
 function renderHistory(history) {
-    historyList.innerHTML = "";
+    historyList.replaceChildren();
+    historySection.classList.toggle("hidden", history.length === 0);
 
-    if (history.length === 0) {
-        historySection.classList.add(
-            "hidden"
-        );
-        return;
+    for (const item of history.slice(0, 5)) {
+        const row = document.createElement("div");
+        row.className = "history-item";
+
+        const content = document.createElement("div");
+        content.className = "history-content";
+
+        const link = document.createElement("a");
+        link.className = "history-short-url";
+        link.href = item.shortUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = item.shortUrl;
+
+        const target = document.createElement("div");
+        target.className = "history-target-url";
+        target.title = item.targetUrl || "";
+        target.textContent = item.targetUrl || "";
+
+        const date = document.createElement("div");
+        date.className = "history-date";
+        date.textContent = item.createdAt ? new Date(item.createdAt).toLocaleString() : "";
+
+        const copy = document.createElement("button");
+        copy.className = "history-copy-btn";
+        copy.type = "button";
+        copy.textContent = "Copy";
+        copy.addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText(item.shortUrl);
+                copy.textContent = "Copied";
+                copy.disabled = true;
+                setTimeout(() => { copy.textContent = "Copy"; copy.disabled = false; }, 900);
+            } catch {
+                showStatus("Could not copy the short URL.", "error");
+            }
+        });
+
+        content.append(link, target, date);
+        row.append(content, copy);
+        historyList.append(row);
     }
-
-    historySection.classList.remove(
-        "hidden"
-    );
-
-    history.forEach(item => {
-        const historyItem =
-            document.createElement("div");
-
-        historyItem.className =
-            "history-item";
-
-        const content =
-            document.createElement("div");
-
-        content.className =
-            "history-content";
-
-        const shortLink =
-            document.createElement("a");
-
-        shortLink.className =
-            "history-short-url";
-        shortLink.href =
-            item.shortUrl;
-        shortLink.target = "_blank";
-        shortLink.rel =
-            "noopener noreferrer";
-        shortLink.textContent =
-            item.shortUrl;
-
-        const targetUrl =
-            document.createElement("div");
-
-        targetUrl.className =
-            "history-target-url";
-        targetUrl.title =
-            item.targetUrl;
-        targetUrl.textContent =
-            item.targetUrl;
-
-        const date =
-            document.createElement("div");
-
-        date.className =
-            "history-date";
-        date.textContent =
-            formatDate(
-                item.createdAt
-            );
-
-        content.appendChild(
-            shortLink
-        );
-        content.appendChild(
-            targetUrl
-        );
-        content.appendChild(
-            date
-        );
-
-        const copyHistoryButton =
-            document.createElement(
-                "button"
-            );
-
-        copyHistoryButton.className =
-            "history-copy-btn";
-        copyHistoryButton.type =
-            "button";
-        copyHistoryButton.textContent =
-            "Copy";
-
-        copyHistoryButton.addEventListener(
-            "click",
-            () =>
-                copyHistoryUrl(
-                    item.shortUrl,
-                    copyHistoryButton
-                )
-        );
-
-        historyItem.appendChild(
-            content
-        );
-        historyItem.appendChild(
-            copyHistoryButton
-        );
-
-        historyList.appendChild(
-            historyItem
-        );
-    });
 }
 
 async function clearHistory() {
-    const confirmed = confirm(
-        "Clear all Nimbus URL history?"
-    );
-
-    if (!confirmed) {
-        return;
-    }
-
-    await chrome.storage.local.remove(
-        STORAGE_KEYS.HISTORY
-    );
-
+    await chrome.storage.local.remove(HISTORY_KEY);
     renderHistory([]);
-
-    showStatus(
-        "History cleared.",
-        "success"
-    );
+    showStatus("Recent links cleared.", "success");
 }
 
-function formatDate(timestamp) {
-    if (!timestamp) {
-        return "";
-    }
-
-    return new Date(
-        timestamp
-    ).toLocaleString(
-        undefined,
-        {
-            dateStyle: "short",
-            timeStyle: "short"
-        }
-    );
-}
-
-function showStatus(
-    message,
-    type = ""
-) {
+function showStatus(message, type = "") {
     status.textContent = message;
-    status.className =
-        `status ${type}`;
+    status.className = `status ${type}`.trim();
 }
 
 function clearStatus() {
