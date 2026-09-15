@@ -3,7 +3,7 @@
   "name": "Nimbus URL Shortener",
   "short_name": "Nimbus",
   "description": "Shorten long links from your Chrome toolbar or right-click menu, then copy and reuse recent short URLs.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "minimum_chrome_version": "109",
   "permissions": ["activeTab", "storage", "contextMenus", "notifications"],
   "host_permissions": ["https://nimbus-api-vqsz.onrender.com/*"],

@@ -2,9 +2,15 @@ const API_BASE_URL = "https://nimbus-api-vqsz.onrender.com";
 const HISTORY_KEY = "shortenedUrls";
 const MAX_HISTORY_ITEMS = 20;
 const CONTEXT_MENU_ID = "shorten-with-nimbus";
+const CONTEXT_REQUEST_TIMEOUT_MS = 25000;
 
-chrome.runtime.onInstalled.addListener(createContextMenu);
-chrome.runtime.onStartup.addListener(createContextMenu);
+chrome.runtime.onInstalled.addListener(() => {
+    void createContextMenu();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+    void createContextMenu();
+});
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId !== CONTEXT_MENU_ID) return;
@@ -15,12 +21,17 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         return;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), CONTEXT_REQUEST_TIMEOUT_MS);
+
     try {
         setBadge(tab?.id, "…", "#1976F3");
+
         const response = await fetch(`${API_BASE_URL}/shorten`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url: targetUrl })
+            body: JSON.stringify({ url: targetUrl }),
+            signal: controller.signal
         });
 
         const data = await response.json().catch(() => null);
@@ -38,19 +49,34 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     } catch (error) {
         console.error("Nimbus context-menu request failed:", error);
         setBadge(tab?.id, "!", "#BD3948");
-        await notify("Nimbus couldn't shorten this link", error?.message || "Please try again.");
+
+        const message = error?.name === "AbortError"
+            ? "Nimbus is taking too long to respond. If the free server is waking up, try again in a few seconds."
+            : error?.message || "Please try again.";
+
+        await notify("Nimbus couldn't shorten this link", message);
     } finally {
-        if (tab?.id) setTimeout(() => chrome.action.setBadgeText({ tabId: tab.id, text: "" }), 4500);
+        clearTimeout(timeoutId);
+
+        if (tab?.id) {
+            setTimeout(() => {
+                chrome.action.setBadgeText({ tabId: tab.id, text: "" }).catch(() => {});
+            }, 4500);
+        }
     }
 });
 
 async function createContextMenu() {
-    await chrome.contextMenus.removeAll();
-    chrome.contextMenus.create({
-        id: CONTEXT_MENU_ID,
-        title: "Shorten with Nimbus",
-        contexts: ["page", "link"]
-    });
+    try {
+        await chrome.contextMenus.removeAll();
+        chrome.contextMenus.create({
+            id: CONTEXT_MENU_ID,
+            title: "Shorten with Nimbus",
+            contexts: ["page", "link"]
+        });
+    } catch (error) {
+        console.error("Nimbus could not create its context menu:", error);
+    }
 }
 
 function isValidHttpUrl(value) {
@@ -71,9 +97,9 @@ async function saveToHistory(item) {
 }
 
 function setBadge(tabId, text, color) {
-    if (!tabId) return;
-    chrome.action.setBadgeBackgroundColor({ tabId, color });
-    chrome.action.setBadgeText({ tabId, text });
+    if (typeof tabId !== "number") return;
+    chrome.action.setBadgeBackgroundColor({ tabId, color }).catch(() => {});
+    chrome.action.setBadgeText({ tabId, text }).catch(() => {});
 }
 
 async function notify(title, message) {

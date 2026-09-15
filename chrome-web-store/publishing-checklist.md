@@ -1,10 +1,10 @@
 # Nimbus — Chrome Web Store publishing checklist
 
 ## Package
-- Upload `nimbus-extension-1.4.0.zip`.
+- Upload the ZIP produced from the contents of the `extension` folder, with `manifest.json` at the ZIP root.
 - The package uses Manifest V3.
 - Runtime files only are included in the upload ZIP; store/privacy assets are kept outside it.
-- Version is `1.4.0`.
+- Version is `1.4.1`.
 
 ## Store listing
 - Name: **Nimbus URL Shortener**
@@ -32,6 +32,7 @@
 ## Final manual checks
 - Verify the production API is online and uses HTTPS.
 - Test toolbar shortening, copy, recent history, history clear, and right-click shortening on a normal HTTPS page.
+- Test the right-click action once while the Render service is cold/asleep and verify Nimbus displays useful feedback.
 - Confirm notifications appear when enabled; the toolbar badge also shows success/error feedback.
 - Verify the privacy-policy URL is public and accessible without sign-in.
 - Enable 2-Step Verification on the publishing Google account.

@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"errors"
+	"log"
 	"net/http"
 	"strings"
 
@@ -27,8 +29,16 @@ func (h *Handler) Redirect(c *gin.Context) {
 	)
 
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{
-			"error": "short URL not found",
+		if errors.Is(err, service.ErrCodeNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "short URL not found",
+			})
+			return
+		}
+
+		log.Printf("GetURL failed for short code %q: %v", code, err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "failed to resolve short URL",
 		})
 		return
 	}
