@@ -23,3 +23,5 @@ coverage.out
 
 # Temporary files
 tmp/
+
+coverage.out
