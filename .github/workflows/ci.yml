@@ -32,6 +32,9 @@ jobs:
 
       - name: Run go vet
         run: go vet ./...
+        
+      - name: Validate Chrome extension manifest
+        run: python -m json.tool extension/manifest.json > /dev/null
 
       - name: Run tests
         run: go test -race -coverprofile=coverage.out ./...

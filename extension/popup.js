@@ -1,6 +1,7 @@
 const API_BASE_URL = "https://nimbus-api-vqsz.onrender.com";
 const HISTORY_KEY = "shortenedUrls";
 const MAX_HISTORY_ITEMS = 20;
+const REQUEST_TIMEOUT_MS = 25000;
 
 const urlInput = document.getElementById("urlInput");
 const useCurrentBtn = document.getElementById("useCurrentBtn");
@@ -63,55 +64,61 @@ async function shortenUrl() {
     }
 
     setLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(
+        () => controller.abort(),
+        REQUEST_TIMEOUT_MS
+    );
+
     try {
         const response = await fetch(`${API_BASE_URL}/shorten`, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url })
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ url }),
+            signal: controller.signal
         });
 
         const data = await response.json().catch(() => null);
-        if (!response.ok) throw new Error(data?.error || `Nimbus returned ${response.status}.`);
-        if (!data?.short_url) throw new Error("Nimbus did not return a short URL.");
+
+        if (!response.ok) {
+            throw new Error(
+                data?.error || `Nimbus returned ${response.status}.`
+            );
+        }
+
+        if (!data?.short_url) {
+            throw new Error("Nimbus did not return a short URL.");
+        }
 
         shortUrl.value = data.short_url;
         result.classList.remove("hidden");
+
         await saveToHistory({
             shortUrl: data.short_url,
             targetUrl: data.target_url || url,
             createdAt: Date.now()
         });
+
         await loadHistory();
-        showStatus("Done — your short link is ready.", "success");
+
+        showStatus(
+            "Done — your short link is ready.",
+            "success"
+        );
     } catch (error) {
         console.error("Nimbus shorten request failed:", error);
-        showStatus(error?.message || "Unable to connect to Nimbus.", "error");
+
+        const message =
+            error?.name === "AbortError"
+                ? "Nimbus is taking too long to respond. Please try again."
+                : error?.message || "Unable to connect to Nimbus.";
+
+        showStatus(message, "error");
     } finally {
+        clearTimeout(timeoutId);
         setLoading(false);
-    }
-}
-
-function setLoading(loading) {
-    shortenBtn.disabled = loading;
-    shortenBtn.querySelector("span").textContent = loading ? "Shortening…" : "Shorten URL";
-    if (loading) showStatus("Creating your short link…", "loading");
-}
-
-async function copyShortUrl() {
-    const value = shortUrl.value.trim();
-    if (!value) return;
-    try {
-        await navigator.clipboard.writeText(value);
-        copyBtn.disabled = true;
-        copyBtn.setAttribute("aria-label", "Copied");
-        showStatus("Copied to clipboard.", "success");
-        setTimeout(() => {
-            copyBtn.disabled = false;
-            copyBtn.setAttribute("aria-label", "Copy short URL");
-        }, 1000);
-    } catch (error) {
-        console.error("Nimbus copy failed:", error);
-        showStatus("Could not copy the short URL.", "error");
     }
 }
 

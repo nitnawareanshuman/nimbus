@@ -27,6 +27,10 @@ Shorten the current page from the extension popup or right-click any page/link a
 * 🐳 Docker support
 * ☁️ Render-ready deployment
 * 🌐 HTTP/HTTPS URL validation
+* 🧪 Automated Go tests
+* 🚦 Per-IP API rate limiting
+* 🔄 GitHub Actions CI
+* 🧰 Automated formatting, vet, race detection and build checks
 
 ---
 
@@ -256,6 +260,19 @@ nimbus/
 └── .env.example
 ```
 
+---
+
+# 🧪 Testing & CI/CD
+
+Nimbus includes automated tests for important backend behavior such as
+URL validation, secure short-code generation, invalid inputs, and API
+rate limiting.
+
+Run the tests locally:
+
+```bash
+go test ./...
+```
 ---
 
 # 🔐 Reliability

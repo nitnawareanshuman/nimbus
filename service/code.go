@@ -18,7 +18,7 @@ const codeLength = 6
 var ErrCodeNotFound = errors.New("short code not found")
 
 // GenerateCode generates a cryptographically secure random 6-character short code.
-func GenerateCode() string {
+func GenerateCode() (string, error) {
 	result := make([]byte, codeLength)
 
 	for i := range result {
@@ -26,15 +26,14 @@ func GenerateCode() string {
 			rand.Reader,
 			big.NewInt(int64(len(charset))),
 		)
-
 		if err != nil {
-			panic(err)
+			return "", err
 		}
 
 		result[i] = charset[n.Int64()]
 	}
 
-	return string(result)
+	return string(result), nil
 }
 
 // CreateCode creates a unique short code and stores the original URL in PostgreSQL.
@@ -44,20 +43,26 @@ func CreateCode(
 	rdb *redis.Client,
 	targetURL string,
 ) (string, error) {
-
 	targetURL = strings.TrimSpace(targetURL)
 
 	if targetURL == "" {
 		return "", errors.New("target URL cannot be empty")
 	}
 
+	if db == nil {
+		return "", errors.New("database is required")
+	}
+
 	// Try multiple times in case of an extremely unlikely short-code collision.
 	for attempts := 0; attempts < 10; attempts++ {
-		code := GenerateCode()
+		code, err := GenerateCode()
+		if err != nil {
+			return "", err
+		}
 
 		var insertedCode string
 
-		err := db.QueryRowContext(
+		err = db.QueryRowContext(
 			ctx,
 			`
 			INSERT INTO codes (short_code, original_url)
@@ -69,8 +74,7 @@ func CreateCode(
 			targetURL,
 		).Scan(&insertedCode)
 
-		if err == sql.ErrNoRows {
-			// Code collision. Generate another code.
+		if errors.Is(err, sql.ErrNoRows) {
 			continue
 		}
 
@@ -78,8 +82,7 @@ func CreateCode(
 			return "", err
 		}
 
-		// Store the URL in Redis as a cache.
-		// Redis is not the source of truth, so a Redis failure should not make URL creation fail.
+		// Redis is only a cache. Redis failure must not fail URL creation.
 		if rdb != nil {
 			_ = rdb.Set(
 				ctx,
@@ -96,36 +99,32 @@ func CreateCode(
 }
 
 // GetURL retrieves the original URL for a short code.
-// If PostgreSQL is used, the result is placed into Redis for subsequent requests.
+// Redis is checked first. PostgreSQL remains the source of truth.
 func GetURL(
 	ctx context.Context,
 	db *sql.DB,
 	rdb *redis.Client,
 	code string,
 ) (string, error) {
-
 	code = strings.TrimSpace(code)
 
 	if code == "" {
 		return "", ErrCodeNotFound
 	}
 
-	// Try Redis first
 	if rdb != nil {
-		targetURL, err := rdb.Get(
-			ctx,
-			code,
-		).Result()
+		targetURL, err := rdb.Get(ctx, code).Result()
 
 		if err == nil {
 			return targetURL, nil
 		}
 
-		// redis.Nil means the key does not exist.
-		// For all Redis errors, fall back to PostgreSQL.
+		// On redis.Nil or any Redis failure, fall back to PostgreSQL.
 	}
 
-	// Fall back to PostgreSQL
+	if db == nil {
+		return "", errors.New("database is required")
+	}
 
 	var targetURL string
 
@@ -147,7 +146,6 @@ func GetURL(
 		return "", err
 	}
 
-	// Cache the result in Redis
 	if rdb != nil {
 		_ = rdb.Set(
 			ctx,
