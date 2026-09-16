@@ -14,6 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"nimbus/handler"
+	"nimbus/middleware"
 )
 
 func getEnv(key, fallback string) string {
@@ -135,7 +136,7 @@ func main() {
 		})
 	})
 
-	r.POST("/shorten", h.Shorten)
+	r.POST("/shorten", middleware.RateLimit(), h.Shorten)
 	r.GET("/:code", h.Redirect)
 
 	// Render automatically provides PORT. Local Docker/default development uses 8080.
