@@ -1,4 +1,5 @@
 # ☁️ Nimbus
+[![CI](https://github.com/nitnawareanshuman/nimbus/actions/workflows/ci.yml/badge.svg)](https://github.com/nitnawareanshuman/nimbus/actions/workflows/ci.yml)
 
 ### Fast, lightweight URL shortening directly from Chrome.
 
@@ -113,7 +114,7 @@ Nimbus creates the short URL in the background and stores it in your recent-link
 
 # 🏗️ System Architecture
 
-![Nimbus System Architecture](docs/nimbus-system-architecture.png)
+![Nimbus System Architecture](docs/architecture/nimbus-system-architecture.png)
 
 Nimbus uses PostgreSQL as the source of truth and Redis/Valkey as an optional cache.
 

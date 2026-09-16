@@ -95,7 +95,6 @@ func CreateCode(
 	return "", errors.New("failed to generate a unique short code")
 }
 
-
 // GetURL retrieves the original URL for a short code.
 // If PostgreSQL is used, the result is placed into Redis for subsequent requests.
 func GetURL(
@@ -111,7 +110,6 @@ func GetURL(
 		return "", ErrCodeNotFound
 	}
 
-	
 	// Try Redis first
 	if rdb != nil {
 		targetURL, err := rdb.Get(
